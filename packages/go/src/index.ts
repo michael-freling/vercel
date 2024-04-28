@@ -43,6 +43,7 @@ import {
   getAnalyzedEntrypoint,
   GoWrapper,
   OUT_EXTENSION,
+  selectGoVersion,
 } from './go-helpers';
 
 export { shouldServe };
@@ -782,9 +783,12 @@ async function writeGoWork(
     workspaces.add(relative(destDir, modulePath));
   }
 
-  const contents = `use (\n${Array.from(workspaces)
-    .map(w => `  ${w}\n`)
-    .join('')})\n`;
+  const { goVersion } = await selectGoVersion(modulePath);
+  const contents =
+    `go ${goVersion}\n` +
+    `use (\n${Array.from(workspaces)
+      .map(w => `  ${w}\n`)
+      .join('')})\n`;
   // console.log(contents);
   await writeFile(join(destDir, 'go.work'), contents, 'utf-8');
 }

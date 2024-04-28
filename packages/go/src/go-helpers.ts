@@ -217,6 +217,25 @@ type CreateGoOptions = {
   workPath: string;
 };
 
+export async function selectGoVersion(modulePath?: string): Promise<{
+  goVersion: string;
+  isGoVersionInGoMod: boolean;
+}> {
+  let goPreferredVersion: string | undefined;
+  if (modulePath) {
+    goPreferredVersion = await parseGoModVersion(modulePath);
+  }
+
+  // default to newest (first) supported go version
+  const goSelectedVersion =
+    goPreferredVersion || Array.from(versionMap.values())[0];
+
+  return {
+    goVersion: goSelectedVersion,
+    isGoVersionInGoMod: !!goPreferredVersion,
+  };
+}
+
 /**
  * Initializes a `GoWrapper` instance.
  *
@@ -246,14 +265,8 @@ export async function createGo({
   workPath,
 }: CreateGoOptions): Promise<GoWrapper> {
   // parse the `go.mod`, if exists
-  let goPreferredVersion: string | undefined;
-  if (modulePath) {
-    goPreferredVersion = await parseGoModVersion(modulePath);
-  }
-
-  // default to newest (first) supported go version
-  const goSelectedVersion =
-    goPreferredVersion || Array.from(versionMap.values())[0];
+  const { goVersion: goSelectedVersion, isGoVersionInGoMod } =
+    await selectGoVersion(modulePath);
 
   const env = cloneEnv(process.env, opts.env);
   const { PATH } = env;
@@ -264,13 +277,8 @@ export async function createGo({
   );
   const goCacheDir = join(workPath, localCacheDir);
 
-  if (goPreferredVersion) {
-    debug(`Preferred go version ${goPreferredVersion} (from go.mod)`);
+  if (isGoVersionInGoMod) {
     env.GO111MODULE = 'on';
-  } else {
-    debug(
-      `Preferred go version ${goSelectedVersion} (latest from version map)`
-    );
   }
 
   const setGoEnv = async (goDir: string | null) => {
